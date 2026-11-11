@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rome Cultural Places | Interactive Leaflet Map</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        rome: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            700: '#b45309',
+                            800: '#92400e',
+                            900: '#78350f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+            min-height: 100%;
+            z-index: 10;
+            background-color: #f8fafc;
+        }
+
+        .custom-div-icon {
+            background: transparent;
+            border: none;
+        }
+
+        .marker-pin {
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+        }
+        .marker-pin:hover {
+            transform: scale(1.25) translateY(-6px);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 1rem;
+            padding: 4px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+        }
+        .leaflet-popup-content {
+            margin: 12px 14px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-100 flex flex-col text-slate-800 antialiased overflow-hidden">
+
+    <!-- App Header -->
+    <header class="bg-slate-900 text-white shadow-md z-30 shrink-0 border-b border-slate-800">
+        <div class="px-4 py-3 md:px-6 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-rose-600 to-red-500 flex items-center justify-center text-white shadow-lg shadow-rose-900/30">
+                    <i class="fa-solid fa-building-columns text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                        Rome Cultural Explorer
+                        <span class="text-xs font-semibold bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-400/30 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Map Active
+                        </span>
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Explore ancient monuments, art landmarks, and green parks across the Eternal City</p>
+                </div>
+            </div>
+
+            <!-- Header Badge -->
+            <div class="flex items-center gap-2 text-xs text-slate-300">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700">
+                    <i class="fa-solid fa-location-dot text-amber-400"></i>
+                    <span id="location-count-badge" class="font-semibold text-slate-200">10 Locations</span>
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Map & Sidebar Workspace -->
+    <div class="flex-1 flex flex-col md:flex-row relative overflow-hidden h-full">
+
+        <!-- Leaflet Map Container -->
+        <main class="flex-1 h-full relative order-1 md:order-1">
+            <div id="map"></div>
+            
+            <!-- Map Legend Box -->
+            <div class="absolute bottom-6 left-6 z-[400] bg-white/95 backdrop-blur-md p-3.5 rounded-2xl shadow-xl border border-slate-200/80 text-xs hidden sm:block max-w-[240px]">
+                <h4 class="font-bold text-slate-800 mb-2 border-b border-slate-100 pb-1 flex items-center justify-between">
+                    <span>Category Legend</span>
+                    <i class="fa-solid fa-layer-group text-slate-400"></i>
+                </h4>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-6 h-6 rounded-lg bg-rose-700 text-white flex items-center justify-center text-[10px] shadow-sm">
+                            <i class="fa-solid fa-building-columns"></i>
+                        </div>
+                        <span class="text-slate-600 font-semibold">History & Ancient</span>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-[10px] shadow-sm">
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+                        <span class="text-slate-600 font-semibold">Art & Monuments</span>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px] shadow-sm">
+                            <i class="fa-solid fa-leaf"></i>
+                        </div>
+                        <span class="text-slate-600 font-semibold">Parks & Nature</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Mobile Drawer Toggle Button -->
+        <button id="mobile-toggle-btn" class="md:hidden fixed bottom-5 right-5 z-40 bg-slate-900 text-white p-4 rounded-full shadow-2xl flex items-center justify-center gap-2 border-2 border-white focus:outline-none">
+            <i class="fa-solid fa-list-ul text-lg"></i>
+            <span class="font-semibold text-sm pr-1">View List</span>
+        </button>
+
+        <!-- Sidebar / Interactive Column (Right Side) -->
+        <aside id="sidebar" class="w-full md:w-[400px] lg:w-[440px] bg-white flex flex-col border-l border-slate-200 z-20 transition-all duration-300 ease-in-out absolute md:relative inset-0 md:inset-auto h-full translate-y-full md:translate-y-0 shadow-2xl md:shadow-none order-2 md:order-2">
+            
+            <!-- Mobile Close Header -->
+            <div class="p-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center md:hidden">
+                <span class="font-semibold text-slate-700 text-sm">Rome Cultural Places</span>
+                <button id="close-mobile-drawer" class="text-slate-500 hover:text-slate-800 p-1.5">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Search Bar & Filters -->
+            <div class="p-4 bg-slate-50 border-b border-slate-200 space-y-3">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="search-input" placeholder="Search location or keyword..." class="w-full pl-10 pr-4 py-2.5 bg-white text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all placeholder:text-slate-400 shadow-sm">
+                </div>
+
+                <!-- Category Tabs -->
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 custom-scrollbar text-xs">
+                    <button data-category="all" class="category-btn active px-3 py-1.5 rounded-lg bg-slate-900 text-white font-semibold shadow-sm transition-all whitespace-nowrap">
+                        All (10)
+                    </button>
+                    <button data-category="history" class="category-btn px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium transition-all flex items-center gap-1.5 whitespace-nowrap">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-700"></span>
+                        History (4)
+                    </button>
+                    <button data-category="monument" class="category-btn px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium transition-all flex items-center gap-1.5 whitespace-nowrap">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        Art (4)
+                    </button>
+                    <button data-category="nature" class="category-btn px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-medium transition-all flex items-center gap-1.5 whitespace-nowrap">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                        Parks (2)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Content Scrollable Box -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar relative">
+
+                <!-- Detailed Card View -->
+                <div id="detail-card" class="hidden min-h-full bg-white p-5 space-y-4">
+                    <button id="back-to-list-btn" class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-amber-600 bg-slate-100 hover:bg-amber-50 px-3 py-1.5 rounded-lg transition-colors mb-1">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        Back to List
+                    </button>
+
+                    <div class="relative rounded-2xl overflow-hidden shadow-md group h-52 bg-slate-200">
+                        <img id="detail-image" src="" alt="Place Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/20 to-transparent"></div>
+                        <span id="detail-category-badge" class="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white shadow-md">
+                            Category
+                        </span>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <h2 id="detail-title" class="text-xl font-bold leading-snug drop-shadow-sm">Place Title</h2>
+                            <p id="detail-subtitle" class="text-xs text-slate-300 font-light">Italian Name</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between text-xs text-slate-500 border-b border-slate-100 pb-3">
+                            <span class="flex items-center gap-1.5">
+                                <i class="fa-solid fa-location-dot text-rose-600 text-sm"></i>
+                                <span id="detail-address" class="font-medium text-slate-700">Address</span>
+                            </span>
+                            <span class="flex items-center gap-1 text-amber-500 font-bold bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
+                                <i class="fa-solid fa-star"></i>
+                                <span id="detail-rating">4.9</span>
+                            </span>
+                        </div>
+
+                        <div>
+                            <h3 class="text-xs uppercase font-bold tracking-wider text-slate-400 mb-1">About this Location</h3>
+                            <p id="detail-description" class="text-sm text-slate-600 leading-relaxed font-normal bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                                Description will appear here...
+                            </p>
+                        </div>
+
+                        <div>
+                            <h3 class="text-xs uppercase font-bold tracking-wider text-slate-400 mb-2">Highlights & Features</h3>
+                            <div id="detail-tags" class="flex flex-wrap gap-1.5">
+                                <!-- Tags generated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="pt-2 flex flex-col sm:flex-row gap-2 border-t border-slate-100">
+                            <button id="focus-map-btn" class="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-amber-600 text-white font-semibold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-crosshairs"></i>
+                                Center Map
+                            </button>
+                            <a id="gmaps-link" href="#" target="_blank" class="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-200">
+                                <i class="fa-solid fa-diamond-turn-right text-blue-600"></i>
+                                Google Maps
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Places List Box -->
+                <div id="places-list" class="p-3 space-y-2.5">
+                    <!-- Dynamic List items inserted here -->
+                </div>
+
+                <!-- Empty Search Result State -->
+                <div id="empty-state" class="hidden p-8 text-center space-y-3">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-xl">
+                        <i class="fa-solid fa-map-pin"></i>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-600">No Places Found</p>
+                    <p class="text-xs text-slate-400">Try modifying your search or choosing a different filter tab.</p>
+                </div>
+
+            </div>
+
+            <!-- Footer note -->
+            <div class="p-3 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-400">
+                Click any marker on the map or list item to view full details
+            </div>
+        </aside>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <script>
+        // HTML Escaping Utility to prevent string/HTML breakage
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Inline SVG Data URL Generator for fallback image handling
+        function createSvgFallback(title, colorHex = '78350f') {
+            const cleanTitle = escapeHtml(title);
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+                <rect width="100%" height="100%" fill="#1e293b"/>
+                <circle cx="400" cy="200" r="80" fill="#${colorHex}" opacity="0.3"/>
+                <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="28" font-weight="bold" fill="#ffffff">${cleanTitle}</text>
+                <text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#94a3b8">Rome Cultural Location</text>
+            </svg>`;
+            return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg).replace(/'/g, '%27');
+        }
+
+        // 10 Exact Cultural Places of Rome
+        const locationsData = [
+            {
+                id: 1,
+                title: "Colosseum",
+                titleEn: "Anfiteatro Flavio",
+                category: "history",
+                categoryLabel: "History & Ancient",
+                lat: 41.8902,
+                lng: 12.4922,
+                image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=800&q=80",
+                description: "The largest ancient amphitheatre ever built. Constructed under the Flavian emperors between 72 AD and 80 AD, it hosted gladiatorial contests, public spectacles, and theatrical dramas for over 50,000 spectators.",
+                address: "Piazza del Colosseo, 1, 00184 Roma RM",
+                rating: 4.9,
+                tags: ["Flavian Dynasty", "Amphitheatre", "UNESCO Site", "Gladiators"]
+            },
+            {
+                id: 2,
+                title: "Pantheon",
+                titleEn: "Basilica di Santa Maria ad Martyres",
+                category: "history",
+                categoryLabel: "History & Ancient",
+                lat: 41.8986,
+                lng: 12.4769,
+                image: "https://images.unsplash.com/photo-1542820229-081e0c12af0b?auto=format&fit=crop&w=800&q=80",
+                description: "A former Roman temple commissioned by Marcus Agrippa during the reign of Augustus and rebuilt by Emperor Hadrian around 126 AD. It features the world's largest unreinforced concrete dome with a central oculus open to the sky.",
+                address: "Piazza della Rotonda, 00186 Roma RM",
+                rating: 4.9,
+                tags: ["Ancient Temple", "Oculus Dome", "Raphael's Tomb", "Roman Architecture"]
+            },
+            {
+                id: 3,
+                title: "Roman Forum",
+                titleEn: "Foro Romano",
+                category: "history",
+                categoryLabel: "History & Ancient",
+                lat: 41.8925,
+                lng: 12.4853,
+                image: "https://images.unsplash.com/photo-1581274050302-581149d3b4c5?auto=format&fit=crop&w=800&q=80",
+                description: "A rectangular plaza surrounded by the ruins of several important ancient government buildings at the center of ancient Rome. For centuries it served as the bustling heart of public, commercial, and judicial life.",
+                address: "Largo della Salara Vecchia, 5/6, 00186 Roma RM",
+                rating: 4.8,
+                tags: ["Archaeology", "Ancient Ruins", "Curia Julia", "Palatine Hill"]
+            },
+            {
+                id: 4,
+                title: "Trevi Fountain",
+                titleEn: "Fontana di Trevi",
+                category: "monument",
+                categoryLabel: "Art & Monuments",
+                lat: 41.9009,
+                lng: 12.4833,
+                image: "https://images.unsplash.com/photo-1525874684015-5837e7168b0b?auto=format&fit=crop&w=800&q=80",
+                description: "Rome's largest and most famous Baroque fountain, designed by Nicola Salvi and completed by Giuseppe Pannini in 1762. According to legend, tossing a coin over your shoulder ensures your return to Rome.",
+                address: "Piazza di Trevi, 00187 Roma RM",
+                rating: 4.8,
+                tags: ["Baroque Art", "Fountain", "Oceanus Statue", "Coin Tradition"]
+            },
+            {
+                id: 5,
+                title: "St. Peter's Basilica",
+                titleEn: "Basilica di San Pietro",
+                category: "monument",
+                categoryLabel: "Art & Monuments",
+                lat: 41.9022,
+                lng: 12.4539,
+                image: "https://images.unsplash.com/photo-1531572753322-ad063cecc140?auto=format&fit=crop&w=800&q=80",
+                description: "Located within Vatican City, this papal basilica is renowned as a monumental masterpiece of Renaissance architecture. Designed by Bramante, Michelangelo, Maderno, and Bernini, it houses Michelangelo's Pietà.",
+                address: "Piazza San Pietro, 00120 Città del Vaticano",
+                rating: 4.9,
+                tags: ["Vatican City", "Michelangelo Dome", "Renaissance", "Pietà Sculpture"]
+            },
+            {
+                id: 6,
+                title: "Piazza Navona",
+                titleEn: "Piazza Navona",
+                category: "monument",
+                categoryLabel: "Art & Monuments",
+                lat: 41.8992,
+                lng: 12.4731,
+                image: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=80",
+                description: "Built on the site of the 1st-century AD Stadium of Domitian, this elegant city square features Gian Lorenzo Bernini's celebrated Fontana dei Quattro Fiumi (Fountain of the Four Rivers) at its center.",
+                address: "Piazza Navona, 00186 Roma RM",
+                rating: 4.8,
+                tags: ["Bernini", "Baroque Plaza", "Fountains", "Outdoor Cafes"]
+            },
+            {
+                id: 7,
+                title: "Castel Sant'Angelo",
+                titleEn: "Mausoleo di Adriano",
+                category: "monument",
+                categoryLabel: "Art & Monuments",
+                lat: 41.9031,
+                lng: 12.4663,
+                image: "https://images.unsplash.com/photo-1574100004472-e536d3b6b405?auto=format&fit=crop&w=800&q=80",
+                description: "A towering cylindrical fortress on the Tiber River, originally commissioned by Emperor Hadrian as a imperial mausoleum. It was later converted by medieval popes into a fortified castle and refuge.",
+                address: "Lungotevere Castello, 50, 00193 Roma RM",
+                rating: 4.7,
+                tags: ["Fortress", "Hadrian's Tomb", "Passetto di Borgo", "Tiber River View"]
+            },
+            {
+                id: 8,
+                title: "Villa Borghese Gardens",
+                titleEn: "Villa Borghese",
+                category: "nature",
+                categoryLabel: "Parks & Nature",
+                lat: 41.9128,
+                lng: 12.4852,
+                image: "https://images.unsplash.com/photo-1569420078330-d02334800366?auto=format&fit=crop&w=800&q=80",
+                description: "A sprawling naturalistic landscape park containing several historic buildings, museums, fountains, and a picturesque boating lake. It is home to the world-renowned Galleria Borghese art collection.",
+                address: "Piazzale Napoleone I, 00197 Roma RM",
+                rating: 4.8,
+                tags: ["Public Park", "Galleria Borghese", "Pincio Terrace", "Boating Lake"]
+            },
+            {
+                id: 9,
+                title: "Capitoline Museums",
+                titleEn: "Musei Capitolini",
+                category: "history",
+                categoryLabel: "History & Ancient",
+                lat: 41.8931,
+                lng: 12.4828,
+                image: "https://images.unsplash.com/photo-1596627116790-a6f4ba45c7d6?auto=format&fit=crop&w=800&q=80",
+                description: "The world's oldest public museum, established in 1471 when Pope Sixtus IV donated a collection of historic bronze sculptures to the citizens of Rome. Includes the famous Capitoline She-Wolf.",
+                address: "Piazza del Campidoglio, 1, 00186 Roma RM",
+                rating: 4.8,
+                tags: ["Oldest Museum", "Capitoline Hill", "She-Wolf", "Ancient Bronzes"]
+            },
+            {
+                id: 10,
+                title: "Trastevere District",
+                titleEn: "Rione XIII Trastevere",
+                category: "nature",
+                categoryLabel: "Parks & Nature",
+                lat: 41.8887,
+                lng: 12.4704,
+                image: "https://images.unsplash.com/photo-1529154036614-a60975f5c760?auto=format&fit=crop&w=800&q=80",
+                description: "A charming bohemian district across the Tiber River famous for its narrow cobblestone alleys, ivy-draped medieval buildings, historic piazzas, and vibrant culinary nightlife.",
+                address: "Trastevere, 00153 Roma RM",
+                rating: 4.7,
+                tags: ["Bohemian Quarter", "Cobblestone Streets", "Trattorias", "Botanical Garden nearby"]
+            }
+        ];
+
+        // State variables
+        let map;
+        let markersGroup = {};
+        let activeLocationId = null;
+        let currentFilter = 'all';
+        let searchQuery = '';
+
+        // Category icon configurations
+        const categoryConfig = {
+            history: {
+                bgClass: 'bg-rose-700',
+                textClass: 'text-rose-700',
+                icon: 'fa-building-columns',
+                hexColor: 'be123c'
+            },
+            monument: {
+                bgClass: 'bg-amber-500',
+                textClass: 'text-amber-600',
+                icon: 'fa-star',
+                hexColor: 'd97706'
+            },
+            nature: {
+                bgClass: 'bg-emerald-600',
+                textClass: 'text-emerald-600',
+                icon: 'fa-leaf',
+                hexColor: '059669'
+            }
+        };
+
+        // Initialize on DOM load
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            renderMarkers();
+            renderPlacesList();
+            setupEventListeners();
+        });
+
+        // 1. Initialize Map using Esri World Street Map (Free, Public, No API Key Required)
+        function initMap() {
+            const romeCenter = [41.8986, 12.4769];
+            
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: true
+            }).setView(romeCenter, 13);
+
+            // Esri World Street Map - Completely free tile server without API key restrictions
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom'
+            }).addTo(map);
+
+            // Add Zoom Controls at Top Right
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            // Recalculate size to ensure tiles render immediately
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 250);
+
+            window.addEventListener('resize', () => {
+                map.invalidateSize();
+            });
+        }
+
+        // 2. Custom Marker Pin Creator
+        function createCustomMarkerIcon(location, isSelected = false) {
+            const config = categoryConfig[location.category] || categoryConfig.history;
+            const activeStyle = isSelected ? 'ring-4 ring-amber-500 scale-125 z-50' : '';
+
+            const htmlContent = `
+                <div class="marker-pin relative flex items-center justify-center transition-all duration-300">
+                    <div class="w-10 h-10 rounded-2xl ${config.bgClass} text-white flex items-center justify-center shadow-xl border-2 border-white ${activeStyle}">
+                        <i class="fa-solid ${config.icon} text-sm"></i>
+                    </div>
+                    <div class="absolute -bottom-1.5 w-3 h-3 ${config.bgClass} rotate-45 border-r border-b border-white"></div>
+                </div>
+            `;
+
+            return L.divIcon({
+                className: 'custom-div-icon',
+                html: htmlContent,
+                iconSize: [40, 40],
+                iconAnchor: [20, 42],
+                popupAnchor: [0, -38]
+            });
+        }
+
+        // 3. Render Leaflet Markers
+        function renderMarkers() {
+            Object.values(markersGroup).forEach(marker => map.removeLayer(marker));
+            markersGroup = {};
+
+            const filteredLocations = getFilteredLocations();
+
+            filteredLocations.forEach(loc => {
+                const icon = createCustomMarkerIcon(loc, loc.id === activeLocationId);
+                const marker = L.marker([loc.lat, loc.lng], { icon: icon }).addTo(map);
+
+                const popupHTML = `
+                    <div class="text-xs space-y-1">
+                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold text-white ${categoryConfig[loc.category].bgClass}">
+                            ${loc.categoryLabel}
+                        </span>
+                        <h4 class="font-bold text-slate-800 text-sm leading-tight">${loc.title}</h4>
+                        <p class="text-slate-500 text-[11px]">${loc.address}</p>
+                        <button onclick="selectLocation(${loc.id})" class="mt-2 w-full py-1.5 bg-slate-900 hover:bg-amber-600 text-white rounded-md text-[11px] font-semibold transition-colors">
+                            View Details
+                        </button>
+                    </div>
+                `;
+
+                marker.bindPopup(popupHTML);
+
+                marker.on('click', () => {
+                    selectLocation(loc.id, false);
+                });
+
+                markersGroup[loc.id] = marker;
+            });
+        }
+
+        // 4. Render Sidebar List
+        function renderPlacesList() {
+            const listContainer = document.getElementById('places-list');
+            const emptyState = document.getElementById('empty-state');
+            const filteredLocations = getFilteredLocations();
+
+            listContainer.innerHTML = '';
+
+            if (filteredLocations.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filteredLocations.forEach(loc => {
+                const isSelected = loc.id === activeLocationId;
+                const config = categoryConfig[loc.category];
+                const fallbackUrl = createSvgFallback(loc.title, config.hexColor);
+
+                const card = document.createElement('div');
+                card.className = `p-3.5 rounded-2xl border transition-all cursor-pointer flex gap-3.5 items-center ${
+                    isSelected 
+                        ? 'bg-amber-50/90 border-amber-400 shadow-md ring-1 ring-amber-300' 
+                        : 'bg-white border-slate-200/80 hover:border-slate-300 hover:shadow-sm'
+                }`;
+
+                card.onclick = () => selectLocation(loc.id, true);
+
+                card.innerHTML = `
+                    <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 relative bg-slate-200">
+                        <img src="${loc.image}" alt="${escapeHtml(loc.title)}" class="w-full h-full object-cover">
+                        <span class="absolute top-1 left-1 w-5 h-5 rounded-md ${config.bgClass} text-white flex items-center justify-center text-[10px] shadow">
+                            <i class="fa-solid ${config.icon}"></i>
+                        </span>
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between gap-1 mb-1">
+                            <span class="text-[10px] font-bold uppercase tracking-wider ${config.textClass}">
+                                ${escapeHtml(loc.categoryLabel)}
+                            </span>
+                            <span class="text-xs text-amber-500 font-bold flex items-center gap-0.5">
+                                <i class="fa-solid fa-star text-[10px]"></i> ${loc.rating}
+                            </span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-sm truncate leading-snug">${escapeHtml(loc.title)}</h3>
+                        <p class="text-xs text-slate-400 truncate mb-1.5">${escapeHtml(loc.titleEn)}</p>
+                        <p class="text-xs text-slate-500 truncate flex items-center gap-1">
+                            <i class="fa-solid fa-location-dot text-slate-400 text-[10px]"></i>
+                            ${escapeHtml(loc.address)}
+                        </p>
+                    </div>
+                `;
+
+                // Programmatically attach image error handler to prevent syntax errors on names with single quotes
+                const cardImg = card.querySelector('img');
+                if (cardImg) {
+                    cardImg.onerror = function() {
+                        this.onerror = null;
+                        this.src = fallbackUrl;
+                    };
+                }
+
+                listContainer.appendChild(card);
+            });
+        }
+
+        // 5. Location Selector Action
+        function selectLocation(id, shouldFlyTo = true) {
+            activeLocationId = id;
+            const location = locationsData.find(loc => loc.id === id);
+            if (!location) return;
+
+            // Highlight Marker Pin
+            Object.keys(markersGroup).forEach(locId => {
+                const markerId = parseInt(locId);
+                const locObj = locationsData.find(l => l.id === markerId);
+                if (locObj) {
+                    markersGroup[locId].setIcon(createCustomMarkerIcon(locObj, markerId === activeLocationId));
+                }
+            });
+
+            // Smooth Map Pan/Fly
+            if (shouldFlyTo && map) {
+                map.flyTo([location.lat, location.lng], 15, {
+                    animate: true,
+                    duration: 1.2
+                });
+                if (markersGroup[id]) {
+                    markersGroup[id].openPopup();
+                }
+            }
+
+            showDetailPanel(location);
+            renderPlacesList();
+
+            // Handle Mobile View Drawer Slide
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth < 768) {
+                sidebar.classList.remove('translate-y-full');
+            }
+        }
+
+        // 6. Detailed Panel View
+        function showDetailPanel(loc) {
+            const detailCard = document.getElementById('detail-card');
+            const placesList = document.getElementById('places-list');
+            const config = categoryConfig[loc.category];
+            const fallbackUrl = createSvgFallback(loc.title, config.hexColor);
+
+            document.getElementById('detail-title').innerText = loc.title;
+            document.getElementById('detail-subtitle').innerText = loc.titleEn;
+            
+            const detailImg = document.getElementById('detail-image');
+            detailImg.src = loc.image;
+            detailImg.onerror = function() {
+                this.onerror = null;
+                this.src = fallbackUrl;
+            };
+
+            document.getElementById('detail-description').innerText = loc.description;
+            document.getElementById('detail-address').innerText = loc.address;
+            document.getElementById('detail-rating').innerText = loc.rating;
+
+            const badge = document.getElementById('detail-category-badge');
+            badge.innerText = loc.categoryLabel;
+            badge.className = `absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white shadow-md ${config.bgClass}`;
+
+            const tagsContainer = document.getElementById('detail-tags');
+            tagsContainer.innerHTML = loc.tags.map(tag => 
+                `<span class="px-2.5 py-1 bg-slate-100 text-slate-600 text-xs rounded-lg font-medium border border-slate-200">#${tag}</span>`
+            ).join('');
+
+            document.getElementById('gmaps-link').href = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
+
+            placesList.classList.add('hidden');
+            detailCard.classList.remove('hidden');
+        }
+
+        // 7. Hide Detail Panel
+        function hideDetailPanel() {
+            activeLocationId = null;
+            document.getElementById('detail-card').classList.add('hidden');
+            document.getElementById('places-list').classList.remove('hidden');
+            renderPlacesList();
+            renderMarkers();
+        }
+
+        // 8. Filter Helpers
+        function getFilteredLocations() {
+            return locationsData.filter(loc => {
+                const matchesCategory = currentFilter === 'all' || loc.category === currentFilter;
+                const matchesSearch = loc.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                      loc.titleEn.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                      loc.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                      loc.description.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesCategory && matchesSearch;
+            });
+        }
+
+        // 9. Attach Event Handlers
+        function setupEventListeners() {
+            const filterBtns = document.querySelectorAll('.category-btn');
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    filterBtns.forEach(b => {
+                        b.classList.remove('bg-slate-900', 'text-white', 'active');
+                        b.classList.add('bg-white', 'text-slate-700');
+                    });
+                    
+                    const target = e.currentTarget;
+                    target.classList.remove('bg-white', 'text-slate-700');
+                    target.classList.add('bg-slate-900', 'text-white', 'active');
+
+                    currentFilter = target.getAttribute('data-category');
+                    hideDetailPanel();
+                    renderMarkers();
+                    renderPlacesList();
+                });
+            });
+
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                renderMarkers();
+                renderPlacesList();
+            });
+
+            document.getElementById('back-to-list-btn').addEventListener('click', hideDetailPanel);
+
+            document.getElementById('focus-map-btn').addEventListener('click', () => {
+                if (activeLocationId) {
+                    const loc = locationsData.find(l => l.id === activeLocationId);
+                    if (loc) {
+                        map.flyTo([loc.lat, loc.lng], 16, { animate: true, duration: 1 });
+                    }
+                }
+            });
+
+            const mobileBtn = document.getElementById('mobile-toggle-btn');
+            const closeMobileBtn = document.getElementById('close-mobile-drawer');
+            const sidebar = document.getElementById('sidebar');
+
+            mobileBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('translate-y-full');
+            });
+
+            closeMobileBtn.addEventListener('click', () => {
+                sidebar.classList.add('translate-y-full');
+            });
+        }
+    </script>
+</body>
+</html>
